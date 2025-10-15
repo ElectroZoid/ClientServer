@@ -3,12 +3,10 @@ package com.swe.networking;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
 /**
@@ -62,14 +60,14 @@ public final class ClientServer {
      * @throws IOException If an I/O error occurs when opening the server socket.
      */
     public ClientServer(final InetAddress sHostname, final int sPort, final int srcPort) throws IOException {
-//        try {
-//            this.hostName = InetAddress.getLocalHost();
-//        } catch (final UnknownHostException e) {
-//            System.err.println("Could not get IP address: " + e.getMessage());
-//            throw new RuntimeException("Failed to get local host IP", e);
-//        }
-
-        this.hostName=InetAddress.getByName("127.0.0.1");
+        try {
+            // UPDATED: Call the new method to get the correct local network IP
+            this.hostName = getLocalNetworkIp();
+            System.out.println("Successfully determined local IP: " + this.hostName.getHostAddress());
+        } catch (final Exception e) {
+            System.err.println("Could not get local IP address: " + e.getMessage());
+            throw new RuntimeException("Failed to get local IP", e);
+        }
         this.port = srcPort;
 
         this.serverHostname = sHostname;
@@ -96,6 +94,34 @@ public final class ClientServer {
         }
 
         printClients();
+    }
+
+    /**
+     * Iterates through all network interfaces to find the primary, non-loopback,
+     * IPv4 address of the local machine.
+     *
+     * @return The local network {@link InetAddress}.
+     * @throws SocketException if an I/O error occurs.
+     */
+    private static InetAddress getLocalNetworkIp() throws SocketException {
+        final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+        while (networkInterfaces.hasMoreElements()) {
+            final NetworkInterface ni = networkInterfaces.nextElement();
+            // Skip interfaces that are down, loopback, or virtual
+            if (!ni.isUp() || ni.isLoopback() || ni.isVirtual()) {
+                continue;
+            }
+            final Enumeration<InetAddress> inetAddresses = ni.getInetAddresses();
+            while (inetAddresses.hasMoreElements()) {
+                final InetAddress address = inetAddresses.nextElement();
+                // Look for a site-local IPv4 address
+                if (address instanceof Inet4Address && address.isSiteLocalAddress()) {
+                    return address;
+                }
+            }
+        }
+        // If no suitable address was found, throw an exception.
+        throw new SocketException("Could not find a suitable local network IP address.");
     }
 
     /**
