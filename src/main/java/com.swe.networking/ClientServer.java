@@ -163,7 +163,7 @@ public final class ClientServer {
                 final int connectionType = parser.getConnectionType(packet);
 
                 if (type == PACKET_TYPE_HELLO && connectionType == CONN_TYPE_NEW) {
-                    receiveHello(packet);
+                    receiveHello(parser.getPayload(packet));
                     printClients();
                 }
                 // to be done callMessageListener()
